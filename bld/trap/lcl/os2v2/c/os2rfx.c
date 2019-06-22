@@ -281,7 +281,7 @@ trap_retval ReqRfx_getdatetime( void )
 
 trap_retval ReqRfx_getcwd( void )
 {
-    ULONG               len = BUFF_SIZE;
+    ULONG               len;
     rfx_getcwd_req      *acc;
     rfx_getcwd_ret      *ret;
     char                *buff;
@@ -289,20 +289,19 @@ trap_retval ReqRfx_getcwd( void )
     acc = GetInPtr( 0 );
     ret = GetOutPtr( 0 );
     buff = GetOutPtr( sizeof( *ret ) );
+    len = RFX_NAME_MAX + 1;
     ret->err = DosQueryCurrentDir( acc->drive, (PBYTE)buff, &len );
     return( sizeof( *ret ) + len );
 }
 
 static void MoveDirInfo( FILEFINDBUF3 *os2, rfx_find *find_info )
 {
-    find_info->dta.dir_entry_num = *(USHORT *)&os2->fdateLastWrite;
-    find_info->dta.cluster = *(USHORT *)&os2->ftimeLastWrite;
+    find_info->time = DTARFX_TIME_OF( find_info->reserved ) = *(USHORT *)&os2->ftimeLastWrite;
+    find_info->date = DTARFX_DATE_OF( find_info->reserved ) = *(USHORT *)&os2->fdateLastWrite;
     find_info->attr = os2->attrFile;
-    find_info->time = *(USHORT *)&os2->ftimeLastWrite;
-    find_info->date = *(USHORT *)&os2->fdateLastWrite;
     find_info->size = os2->cbFile;
-    strncpy( find_info->name, os2->achName, RFX_FIND_NAME_MAX - 1 );
-    find_info->name[RFX_FIND_NAME_MAX - 1] = '\0';
+    strncpy( find_info->name, os2->achName, RFX_NAME_MAX );
+    find_info->name[RFX_NAME_MAX] = '\0';
 }
 
 trap_retval ReqRfx_findfirst( void )
@@ -367,7 +366,7 @@ trap_retval ReqRfx_nametocannonical( void )
     int                         level = 0;
     ULONG                       drive;
     ULONG                       map;
-    ULONG                       len = BUFF_SIZE;
+    ULONG                       len;
 
     // Not tested, and not used right now
     name = GetInPtr( sizeof( rfx_nametocannonical_req ) );
@@ -383,6 +382,7 @@ trap_retval ReqRfx_nametocannonical( void )
     } else {
         DosQueryCurrentDisk( &drive, &map );
     }
+    len = RFX_NAME_MAX + 1;
     if( *name != '\\' ) {
         *fullname++ = '\\';
         // DOS : TinyGetCWDir( fullname, TinyGetCurrDrive() + 1 );

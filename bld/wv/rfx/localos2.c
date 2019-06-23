@@ -53,6 +53,7 @@
 #define LH2SYSH(sh,lh)  (sh).u._32[0]=lh;(sh).u._32[1]=0
 
 void LocalTime( int *hour, int *min, int *sec, int *hundredths )
+/**************************************************************/
 {
     struct _DATETIME datetime;
 
@@ -64,6 +65,7 @@ void LocalTime( int *hour, int *min, int *sec, int *hundredths )
 }
 
 void LocalDate( int *year, int *month, int *day, int *weekday )
+/*************************************************************/
 {
     struct _DATETIME datetime;
 
@@ -244,66 +246,90 @@ error_handle LocalDateTime( sys_handle sh, int *time, int *date, int set )
     return( 0 );
 }
 
-error_handle LocalGetCwd( int drive, char *where )
-/************************************************/
+error_handle LocalGetCwd( int drive, char *where, unsigned len )
+/**************************************************************/
 {
-    APIRET len;
+    APIRET xlen;
 
-    len = 256;
+    xlen = len;
 #ifdef _M_I86
-    return( StashErrCode( DosQCurDir( drive, (PBYTE)where, &len ), OP_LOCAL ) );
+    return( StashErrCode( DosQCurDir( drive, (PBYTE)where, &xlen ), OP_LOCAL ) );
 #else
-    return( StashErrCode( DosQueryCurrentDir( drive, (PBYTE)where, &len ), OP_LOCAL ) );
+    return( StashErrCode( DosQueryCurrentDir( drive, (PBYTE)where, &xlen ), OP_LOCAL ) );
 #endif
 }
 
-static void makeDOSDTA( FINDBUF *findbuf, rfx_find *find_info )
-/*************************************************************/
+static void makeDTARFX( rfx_find *info, FINDBUF *findbuf, HDIR h )
+/****************************************************************/
 {
-    find_info->time = DTARFX_TIME_OF( find_info->reserved ) = *(USHORT FAR *)&findbuf->ftimeLastWrite;
-    find_info->date = DTARFX_DATE_OF( find_info->reserved ) = *(USHORT FAR *)&findbuf->fdateLastWrite;
-    find_info->attr = findbuf->attrFile;
-    find_info->size = findbuf->cbFile;
-    strncpy( find_info->name, findbuf->achName, RFX_NAME_MAX );
-    find_info->name[RFX_NAME_MAX] = '\0';
+    DTARFX_HANDLE_OF( info ) = h;
+    info->time = DTARFX_TIME_OF( info ) = *(USHORT FAR *)&findbuf->ftimeLastWrite;
+    info->date = DTARFX_DATE_OF( info ) = *(USHORT FAR *)&findbuf->fdateLastWrite;
+    info->attr = findbuf->attrFile;
+    info->size = findbuf->cbFile;
+    strncpy( info->name, findbuf->achName, CCHMAXPATHCOMP );
+    info->name[CCHMAXPATHCOMP] = '\0';
 }
 
-error_handle LocalFindFirst( const char *pattern, void *info, unsigned info_len, int attrib )
-/*******************************************************************************************/
+error_handle LocalFindFirst( const char *pattern, rfx_find *info, unsigned info_len, int attrib )
+/***********************************************************************************************/
 {
     FINDBUF     findbuf;
-    HDIR        handle = 1;
+    HDIR        h;
     APIRET      count = 1;
     APIRET      err;
 
+    /* unused parameters */ (void)info_len;
+
     (void)info_len;
 
+    h = HDIR_CREATE;
 #ifdef _M_I86
-    err = DosFindFirst( (char *)pattern, &handle, attrib, &findbuf, sizeof( findbuf ), &count, 0 );
+    err = DosFindFirst( (char *)pattern, &h, attrib, &findbuf, sizeof( findbuf ), &count, 0 );
 #else
-    err = DosFindFirst( pattern, &handle, attrib, &findbuf, sizeof( findbuf ), &count, FIL_STANDARD );
+    err = DosFindFirst( pattern, &h, attrib, &findbuf, sizeof( findbuf ), &count, FIL_STANDARD );
 #endif
-    if( err == 0 )
-        makeDOSDTA( &findbuf, info );
-    return( StashErrCode( err, OP_LOCAL ) );
+    if( err ) {
+        DTARFX_HANDLE_OF( info ) = DTARFX_INVALID_HANDLE;
+        return( StashErrCode( err, OP_LOCAL ) );
+    }
+    makeDTARFX( info, &findbuf, h );
+    return( 0 );
 }
 
-int LocalFindNext( void *info, unsigned info_len )
-/************************************************/
+int LocalFindNext( rfx_find *info, unsigned info_len )
+/****************************************************/
 {
     FINDBUF     findbuf;
     APIRET      count = 1;
     APIRET      rc;
+    HDIR        h;
 
-    info_len = info_len;
-    rc = DosFindNext( 1, &findbuf, sizeof( findbuf ), &count );
-    if( rc != 0 )
-        return( -1 );
-    if( count == 0 ) {
-        DosFindClose( 1 );
+    /* unused parameters */ (void)info_len;
+
+    if( DTARFX_HANDLE_OF( info ) == DTARFX_INVALID_HANDLE ) {
         return( -1 );
     }
-    makeDOSDTA( &findbuf, info );
+    h = DTARFX_HANDLE_OF( info );
+    rc = DosFindNext( h, &findbuf, sizeof( findbuf ), &count );
+    if( rc || count == 0 ) {
+        DosFindClose( h );
+        DTARFX_HANDLE_OF( info ) = DTARFX_INVALID_HANDLE;
+        return( -1 );
+    }
+    makeDTARFX( info, &findbuf, h );
+    return( 0 );
+}
+
+error_handle LocalFindClose( rfx_find *info, unsigned info_len )
+/**************************************************************/
+{
+    /* unused parameters */ (void)info_len;
+
+    if( DTARFX_HANDLE_OF( info ) != DTARFX_INVALID_HANDLE ) {
+        DosFindClose( DTARFX_HANDLE_OF( info ) );
+        DTARFX_HANDLE_OF( info ) = DTARFX_INVALID_HANDLE;
+    }
     return( 0 );
 }
 
@@ -322,12 +348,10 @@ static void __pascal __far doInterrupt( USHORT signal_argument, USHORT signal_nu
     interruptOccurred = true;
     switch( signal_num ) {
     case SIG_CTRLBREAK:
-        DosSetSigHandler( doInterrupt, &handler, &action,
-                          SIGA_ACKNOWLEDGE, SIG_CTRLBREAK );
+        DosSetSigHandler( doInterrupt, &handler, &action, SIGA_ACKNOWLEDGE, SIG_CTRLBREAK );
         break;
     case SIG_CTRLC:
-        DosSetSigHandler( doInterrupt, &handler, &action,
-                          SIGA_ACKNOWLEDGE, SIG_CTRLC );
+        DosSetSigHandler( doInterrupt, &handler, &action, SIGA_ACKNOWLEDGE, SIG_CTRLC );
         break;
     }
 }
@@ -342,8 +366,8 @@ void InitInt( void )
 
     interruptOccurred = false;
 #ifdef _M_I86
-    DosSetSigHandler( doInterrupt, &handler, &action,SIGA_ACCEPT,SIG_CTRLC);
-    DosSetSigHandler( doInterrupt, &handler, &action,SIGA_ACCEPT,SIG_CTRLBREAK);
+    DosSetSigHandler( doInterrupt, &handler, &action, SIGA_ACCEPT, SIG_CTRLC );
+    DosSetSigHandler( doInterrupt, &handler, &action, SIGA_ACCEPT, SIG_CTRLBREAK );
 #endif
     DosError( 0x0002 ); /* disable hard-error processing */
 }

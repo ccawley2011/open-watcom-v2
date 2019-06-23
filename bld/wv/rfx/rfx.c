@@ -51,7 +51,7 @@
 #include "rfx.h"
 
 
-#define REAL_CODE( err ) (GetSystemErrCode(err)&0xffff)
+#define REAL_CODE( err ) (GetSystemErrCode( err ) & 0xffff)
 
 #define IO_NORMAL       0
 #define IO_SUBDIRECTORY 0x10
@@ -101,7 +101,7 @@ typedef struct copyspec {
 } COPYSPEC, *COPYPTR;
 
 typedef struct dir_handle {
-    rfx_find    find_info;
+    rfx_find    info;
     char        path[64];
     long        free;
     object_loc  location;
@@ -313,7 +313,7 @@ static void *DbgAlloc( size_t size )
     return( malloc( size ) );
 }
 
-static void DbgFree( void * chunk )
+static void DbgFree( void *chunk )
 {
     free( chunk );
 }
@@ -438,14 +438,14 @@ static error_handle SetDir( const char *name, object_loc loc )
     }
 }
 
-static error_handle GetDir( int drive, char *name, object_loc loc )
-/*****************************************************************/
+static error_handle GetDir( int drive, char *name, unsigned len, object_loc loc )
+/*******************************************************************************/
 {
     /* drive=0 means current drive A:=1, B:=2, etc. */
     if( loc == LOC_REMOTE ) {
-        return( RemoteGetCwd( drive, name ) );
+        return( RemoteGetCwd( drive, name, len ) );
     } else {
-        return( LocalGetCwd( drive, name ) );
+        return( LocalGetCwd( drive, name, len ) );
     }
 }
 
@@ -491,23 +491,33 @@ static bool IsDevice( const char *name, object_loc loc )
 }
 
 
-static error_handle FindFirst( const char *name, object_loc loc, int attr, rfx_find *find_info )
-/**********************************************************************************************/
+static error_handle _FindFirst( const char *name, object_loc loc, int attr, rfx_find *info, unsigned info_len )
+/*************************************************************************************************************/
 {
     if( loc == LOC_REMOTE ) {
-        return( RemoteFindFirst( name, find_info, sizeof( *find_info ), attr ) );
+        return( RemoteFindFirst( name, info, info_len, attr ) );
     } else {
-        return( LocalFindFirst( name, find_info, sizeof( *find_info ), attr ) );
+        return( LocalFindFirst( name, info, info_len, attr ) );
     }
 }
 
-static int FindNext( object_loc loc, rfx_find *find_info )
-/********************************************************/
+static int _FindNext( object_loc loc, rfx_find *info, unsigned info_len )
+/***********************************************************************/
 {
     if( loc == LOC_REMOTE ) {
-        return( RemoteFindNext( find_info, sizeof( *find_info ) ) );
+        return( RemoteFindNext( info, info_len ) );
     } else {
-        return( LocalFindNext( find_info, sizeof( *find_info ) ) );
+        return( LocalFindNext( info, info_len ) );
+    }
+}
+
+static error_handle _FindClose( object_loc loc, rfx_find *info, unsigned info_len )
+/*********************************************************************************/
+{
+    if( loc == LOC_REMOTE ) {
+        return( RemoteFindClose( info, info_len ) );
+    } else {
+        return( LocalFindClose( info, info_len ) );
     }
 }
 
@@ -561,7 +571,7 @@ static void SameDate( file_handle fh_src, object_loc src_loc, file_handle fh_dst
     }
 }
 
-static bool Option( const char * str, char opt )
+static bool Option( const char *str, char opt )
 {
     if( *str == '/' || *str == '-' ) {
         if( tolower( str[1] ) == opt ) {
@@ -779,7 +789,7 @@ static error_handle   Renamef( const char *fn1, object_loc f1loc, const char *fn
 {
     error_handle    errh;
     char            *endpath;
-    rfx_find        find_info;
+    rfx_find        info;
 
     fn1 = _FileParse( fn1, &Parse1 );
     fn2 = _FileParse( fn2, &Parse2 );
@@ -807,7 +817,7 @@ static error_handle   Renamef( const char *fn1, object_loc f1loc, const char *fn
         return( 0 );
     }
     endpath = Squish( &Parse1, Name1 );
-    errh = FindFirst( Name1, f1loc, IO_NORMAL, &find_info );
+    errh = _FindFirst( Name1, f1loc, IO_NORMAL, &info, sizeof( info ) );
     if( errh != 0 ) {
         SysSetLclErr( IO_FILE_NOT_FOUND );
         return( errh );
@@ -817,7 +827,7 @@ static error_handle   Renamef( const char *fn1, object_loc f1loc, const char *fn
             errh = SysSetLclErr( IO_INTERRUPT );
             break;
         }
-        CopyStr( find_info.name, endpath );
+        CopyStr( info.name, endpath );
         _FileParse( Name1, &Parse3 );
         Replace( Parse1.name, Parse2.name, Parse3.name );
         Replace( Parse1.ext, Parse2.ext, Parse3.ext );
@@ -832,10 +842,11 @@ static error_handle   Renamef( const char *fn1, object_loc f1loc, const char *fn
             }
             break;
         }
-        if( FindNext( f1loc, &find_info ) ) {
+        if( _FindNext( f1loc, &info, sizeof( info ) ) ) {
             break;
         }
     }
+    _FindClose( f1loc, &info, sizeof( info ) );
     return( errh );
 }
 
@@ -902,7 +913,7 @@ static void FreeCopySpec( COPYPTR junk )
     DbgFree( junk );
 }
 
-static bool HasWildCards( const char * src )
+static bool HasWildCards( const char *src )
 {
     if( strchr( src, '?' ) != NULL )
         return( true );
@@ -1011,7 +1022,7 @@ static void    RRecurse( const char *f1, const char *f2, object_loc f1loc, objec
     char            *endptr;
     char            *endpath;
     char            ch;
-    rfx_find        find_info;
+    rfx_find        info;
 
     f1 = _FileParse( f1, &Parse1 );
     FinishName( f1, &Parse1, f1loc, true );
@@ -1021,17 +1032,17 @@ static void    RRecurse( const char *f1, const char *f2, object_loc f1loc, objec
     endpath = Squish( &Parse3, Name1 );
     f2 = _FileParse( f2, &Parse2 );
     FinishName( f2, &Parse2, f2loc, true );
-    errh = FindFirst( Name1, f1loc, IO_SUBDIRECTORY, &find_info );
+    errh = _FindFirst( Name1, f1loc, IO_SUBDIRECTORY, &info, sizeof( info ) );
     if( errh == 0 ) {
         endpath = Squish( &Parse1, Name1 );
         for(;;) {
-            if( find_info.attr & IO_SUBDIRECTORY ) {
-                if( find_info.name[0] != '.' ) {
+            if( info.attr & IO_SUBDIRECTORY ) {
+                if( info.name[0] != '.' ) {
                     CopyStr( endpath, Name3 );
-                    CopyStr( Name3, CopyStr( "\\", CopyStr( find_info.name, endpath ) ) );
+                    CopyStr( Name3, CopyStr( "\\", CopyStr( info.name, endpath ) ) );
                     endpath = Squish( &Parse2, Name2 );
                     CopyStr( endpath, Name3 );
-                    endptr = CopyStr( find_info.name, endpath );
+                    endptr = CopyStr( info.name, endpath );
                     CopyStr( Name3, CopyStr( "\\", endptr ) );
                     ch = *endptr;
                     *endptr = NULLCHAR;
@@ -1048,10 +1059,11 @@ static void    RRecurse( const char *f1, const char *f2, object_loc f1loc, objec
                     endpath = Squish( &Parse1, Name1 );
                 }
             }
-            if( FindNext( f1loc, &find_info ) ) {
+            if( _FindNext( f1loc, &info, sizeof( info ) ) ) {
                 break;
             }
         }
+        _FindClose( f1loc, &info, sizeof( info ) );
     }
 }
 
@@ -1061,7 +1073,7 @@ static error_handle   CopyASpec( const char *f1, const char *f2, object_loc f1lo
     char            *endptr;
     char            *endpath;
     unsigned_32     dst_entryid;
-    rfx_find        find_info;
+    rfx_find        info;
 
     f1 = _FileParse( f1, &Parse1 );
     FinishName( f1, &Parse1, f1loc, true );
@@ -1070,21 +1082,22 @@ static error_handle   CopyASpec( const char *f1, const char *f2, object_loc f1lo
     Copy( &Parse1, &Parse3, sizeof( file_parse ) );
     if( Parse2.name[0] == NULLCHAR )
         return( StashErrCode( IO_FILE_NOT_FOUND, OP_LOCAL ) );
-    dst_entryid = (unsigned_32)-1;
+    dst_entryid = DTARFX_INVALID_ID;
     if( ( f1loc == f2loc ) && ( Parse1.drive[0] == Parse2.drive[0] ) ) {
         Squish( &Parse2, Name2 );
-        errh = FindFirst( Name2, f2loc, IO_SUBDIRECTORY, &find_info );
+        errh = _FindFirst( Name2, f2loc, IO_SUBDIRECTORY, &info, sizeof( info ) );
         if( errh == 0 ) {
-            dst_entryid = DTARFX_ID_OF( find_info.reserved );
+            dst_entryid = DTARFX_ID_OF( &info );
+            _FindClose( f2loc, &info, sizeof( info ) );
         }
     }
     endpath = Squish( &Parse1, Name1 );
     Squish( &Parse2, Name2 );
     WrtCopy( Name1, Name2, f1loc, f2loc );
-    errh = FindFirst( Name1, f1loc, IO_NORMAL, &find_info );
+    errh = _FindFirst( Name1, f1loc, IO_NORMAL, &info, sizeof( info ) );
     if( errh == 0 ) {
         for(;;) {
-            CopyStr( find_info.name, endpath );
+            CopyStr( info.name, endpath );
             if( Parse2.device ) {
                 Squish( &Parse2, Name2 );
                 errh = DoCopy( Name1, Name2, f1loc, f2loc );
@@ -1095,7 +1108,7 @@ static error_handle   CopyASpec( const char *f1, const char *f2, object_loc f1lo
                 CopyStr( Parse2.path, Parse3.path );
                 CopyStr( Parse2.drive, Parse3.drive );
                 endptr = Squish( &Parse3, Name2 );
-                if( DTARFX_ID_OF( find_info.reserved ) == dst_entryid && strcmp( endptr, endpath ) == 0 ) {
+                if( DTARFX_ID_OF( &info ) == dst_entryid && strcmp( endptr, endpath ) == 0 ) {
                     errh = StashErrCode( IO_CANT_COPY_TO_SELF, OP_LOCAL );
                 } else {
                     errh = DoCopy( Name1, Name2, f1loc, f2loc );
@@ -1103,10 +1116,11 @@ static error_handle   CopyASpec( const char *f1, const char *f2, object_loc f1lo
             }
             if( errh != 0 )
                 break;
-            if( FindNext( f1loc, &find_info ) ) {
+            if( _FindNext( f1loc, &info, sizeof( info ) ) ) {
                 break;
             }
         }
+        _FindClose( f1loc, &info, sizeof( info ) );
     }
     return( errh );
 }
@@ -1255,6 +1269,7 @@ static void ProcType( int argc, char **argv )
 
 static  void    DirClosef( dir_handle *dh )
 {
+    _FindClose( dh->location, &dh->info, sizeof( dh->info ) );
     DbgFree( dh );
 }
 
@@ -1267,52 +1282,49 @@ static dir_handle      *DirOpenf( const char *fspec, object_loc fnloc )
     dh = (dir_handle *)DbgAlloc( sizeof( dir_handle ) );
     if( dh == NULL ) {
         SysSetLclErr( IO_FIND_ERROR );
-        return( NULL );
-    }
-    dh->status = RFX_OK;
-    dh->location = fnloc;
-    fspec = _FileParse( fspec, &parse );
-    if( parse.name[0] == NULLCHAR ) {
-        parse.name[0] = '*';
-        parse.name[1] = NULLCHAR;
-        if( parse.ext[0] == NULLCHAR ) {
+    } else {
+        dh->status = RFX_OK;
+        dh->location = fnloc;
+        fspec = _FileParse( fspec, &parse );
+        if( parse.name[0] == NULLCHAR ) {
+            parse.name[0] = '*';
+            parse.name[1] = NULLCHAR;
+            if( parse.ext[0] == NULLCHAR ) {
+                parse.ext[0] = '.';
+                parse.ext[1] = '*';
+                parse.ext[2] = NULLCHAR;
+                if( !parse.slash && parse.path[0] != NULLCHAR ) {
+                    CopyStr( "\\", parse.path + strlen( parse.path ) );
+                }
+            }
+        } else if( IsDir( fspec, fnloc ) ) {
+            CopyStr( "\\", CopyStr( parse.ext, CopyStr( parse.name, parse.path + strlen( parse.path ) ) ) );
+            parse.name[0] = '*';
+            parse.name[1] = NULLCHAR;
             parse.ext[0] = '.';
             parse.ext[1] = '*';
             parse.ext[2] = NULLCHAR;
-            if( !parse.slash && parse.path[0] != NULLCHAR ) {
-                CopyStr( "\\", parse.path + strlen( parse.path ) );
+        } else if( parse.ext[0] == NULLCHAR ) {
+            parse.ext[0] = '.';
+            parse.ext[1] = '*';
+            parse.ext[2] = NULLCHAR;
+        }
+        Squish( &parse, dh->path );
+        if( GetFreeSpace( dh, fnloc ) ) {
+            errh = _FindFirst( dh->path, dh->location, IO_SUBDIRECTORY, &dh->info, sizeof( dh->info ) );
+            if( errh == 0 ) {
+                return( dh );
             }
-        }
-    } else if( IsDir( fspec, fnloc ) ) {
-        CopyStr( "\\", CopyStr( parse.ext, CopyStr( parse.name, parse.path + strlen( parse.path ) ) ) );
-        parse.name[0] = '*';
-        parse.name[1] = NULLCHAR;
-        parse.ext[0] = '.';
-        parse.ext[1] = '*';
-        parse.ext[2] = NULLCHAR;
-    } else if( parse.ext[0] == NULLCHAR ) {
-        parse.ext[0] = '.';
-        parse.ext[1] = '*';
-        parse.ext[2] = NULLCHAR;
-    }
-    Squish( &parse, dh->path );
-    if( GetFreeSpace( dh, fnloc ) ) {
-        errh = FindFirst( dh->path, dh->location, IO_SUBDIRECTORY, &dh->find_info );
-        if( errh != 0 ) {
             SysSetLclErr( IO_FIND_ERROR );
-            DirClosef( dh );
-            return( NULL );
         } else {
-            return( dh );
+            SysSetLclErr( IO_BAD_DRIVE );
         }
-    } else {
-        SysSetLclErr( IO_BAD_DRIVE );
         DirClosef( dh );
-        return( NULL );
     }
+    return( NULL );
 }
 
-static void     FormatDTA( char *buff, const rfx_find *find_info, bool wide )
+static void     FormatDTA( char *buff, const rfx_find *info, bool wide )
 {
     char                *d;
     const char          *src;
@@ -1322,8 +1334,8 @@ static void     FormatDTA( char *buff, const rfx_find *find_info, bool wide )
 
     Fill( buff, 39, ' ' );
     buff[39] = NULLCHAR;
-    if( find_info->attr & IO_SUBDIRECTORY ) {
-        *CopyStr( find_info->name, buff ) = ' ';
+    if( info->attr & IO_SUBDIRECTORY ) {
+        *CopyStr( info->name, buff ) = ' ';
         if( wide ) {                    /* 11-jun-90 */
             Copy( "     ", buff + 13, 5 );
         } else {
@@ -1331,7 +1343,7 @@ static void     FormatDTA( char *buff, const rfx_find *find_info, bool wide )
         }
     } else {
         d = buff;
-        src = find_info->name;
+        src = info->name;
         while( *src != '.' && *src != NULLCHAR ) {
             *d++ = *src++;
         }
@@ -1343,19 +1355,19 @@ static void     FormatDTA( char *buff, const rfx_find *find_info, bool wide )
             }
         }
         d = buff + 20;
-        if( find_info->size == 0 ) {
+        if( info->size == 0 ) {
             *d = '0';
         } else {
-            DItoD( find_info->size, d );
+            DItoD( info->size, d );
         }
     }
-    date = find_info->date;
+    date = info->date;
     ItoD( ( date >> 5 ) & 0x000F, buff + 23 ); /* month */
     ItoD( date & 0x0001F, buff + 26 );         /* day */
     ItoD( ( date >> 9 ) + 1980, buff + 29 );
     buff[28] = '-';
     buff[25] = '-';
-    time = find_info->time;
+    time = info->time;
     hour = time >> 11;
     if( hour <= 11 ) {
         buff[38] = 'a';
@@ -1375,8 +1387,8 @@ static void    DirReadf( dir_handle *dh, char *buff, bool wide )
     if( dh->status == RFX_EOF ) {
         *buff = NULLCHAR;
     } else {
-        FormatDTA( buff, &dh->find_info, wide );
-        if( FindNext( dh->location, &dh->find_info ) ) {
+        FormatDTA( buff, &dh->info, wide );
+        if( _FindNext( dh->location, &dh->info, sizeof( dh->info ) ) ) {
             dh->status = RFX_EOF;
         }
     }
@@ -1490,7 +1502,7 @@ static void ProcCD( int argc, char **argv, int crlf )
         Buff[1] = ':';
         Buff[2] = '\\';
         WriteStream( STD_OUT, Buff, 3 );
-        GetDir( 0, Buff, src_loc );
+        GetDir( 0, Buff, sizeof( Buff ), src_loc );
         WriteStream( STD_OUT, Buff, strlen( Buff ) );
         if( crlf ) {
             WriteNL( STD_OUT );
@@ -1505,7 +1517,7 @@ static void ProcCD( int argc, char **argv, int crlf )
         Buff[1] = ':';
         Buff[2] = '\\';
         WriteStream( STD_OUT, Buff, 3 );
-        GetDir( Buff[0] - 'A' + 1, Buff, src_loc );
+        GetDir( Buff[0] - 'A' + 1, Buff, sizeof( Buff ), src_loc );
         WriteStream( STD_OUT, Buff, strlen( Buff ) );
         if( crlf ) {
             WriteNL( STD_OUT );
@@ -1540,12 +1552,12 @@ static error_handle   Scratchf( const char *fn, object_loc fnloc )
 {
     error_handle    errh;
     char            *endptr;
-    rfx_find        find_info;
+    rfx_find        info;
 
     fn = _FileParse( fn, &Parse1 );
     FinishName( fn, &Parse1, fnloc, false );
     Squish( &Parse1, Name1 );
-    errh = FindFirst( Name1, fnloc, IO_NORMAL, &find_info );
+    errh = _FindFirst( Name1, fnloc, IO_NORMAL, &info, sizeof( info ) );
     if( errh != 0 ) {
         SysSetLclErr( IO_FILE_NOT_FOUND );
     } else {
@@ -1555,16 +1567,17 @@ static error_handle   Scratchf( const char *fn, object_loc fnloc )
         }
         endptr = CopyStr( Parse1.path, endptr );
         for(;;) {
-            CopyStr( find_info.name, endptr );
+            CopyStr( info.name, endptr );
             errh = Erase( Parse1.drive, fnloc );
             if( errh != 0 ) {
                 TransSetErr( errh );
                 return( errh );
             }
-            if( FindNext( fnloc, &find_info ) ) {
+            if( _FindNext( fnloc, &info, sizeof( info ) ) ) {
                 break;
             }
         }
+        _FindClose( fnloc, &info, sizeof( info ) );
     }
     return( errh );
 }

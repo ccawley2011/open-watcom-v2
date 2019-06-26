@@ -322,9 +322,6 @@ error_handle RemoteDateTime( sys_handle sh, int *time, int *date, int set )
     return( 0 );
 }
 
-//NYI: Assume max cwd lenght is 80
-#define MAX_STRING_LEN  80
-
 error_handle RemoteGetCwd( int drv, char *where, trap_elen len )
 {
     in_mx_entry             in[1];
@@ -404,14 +401,14 @@ error_handle RemoteFindClose( rfx_find *info, trap_elen info_len )
     return( StashErrCode( ret.err, OP_REMOTE ) );
 }
 
-size_t RenameNameToCannonical( char *name, char *fullname, trap_elen fullname_len )
+unsigned RemoteNameToCanonical( char *name, char *fullname, trap_elen fullname_len )
 {
     in_mx_entry                 in[2];
     mx_entry                    out[2];
-    rfx_nametocannonical_req    acc;
-    rfx_nametocannonical_ret    ret;
+    rfx_nametocanonical_req     acc;
+    rfx_nametocanonical_ret     ret;
 
-    SUPP_RFX_SERVICE( acc, REQ_RFX_NAMETOCANNONICAL );
+    SUPP_RFX_SERVICE( acc, REQ_RFX_NAMETOCANONICAL );
     in[0].ptr = &acc;
     in[0].len = sizeof( acc );
     in[1].ptr = name;

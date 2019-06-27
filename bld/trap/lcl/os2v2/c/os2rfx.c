@@ -43,7 +43,6 @@
 
 
 #define NIL_DOS_HANDLE  ((HFILE)0xFFFF)
-#define BUFF_SIZE       256
 
 #define TRPH2LH(th)     (HFILE)((th)->handle.u._32[0])
 #define LH2TRPH(th,lh)  (th)->handle.u._32[0]=(unsigned_32)lh;(th)->handle.u._32[1]=0
@@ -298,8 +297,13 @@ static void makeDTARFX( rfx_find *info, FILEFINDBUF3 *findbuf, HDIR h )
     info->date = DTARFX_DATE_OF( info ) = *(USHORT *)&findbuf->fdateLastWrite;
     info->attr = findbuf->attrFile;
     info->size = findbuf->cbFile;
+#if RFX_NAME_MAX < CCHMAXPATHCOMP
+    strncpy( info->name, findbuf->achName, RFX_NAME_MAX );
+    info->name[RFX_NAME_MAX] = '\0';
+#else
     strncpy( info->name, findbuf->achName, CCHMAXPATHCOMP );
     info->name[CCHMAXPATHCOMP] = '\0';
+#endif
 }
 
 trap_retval ReqRfx_findfirst( void )

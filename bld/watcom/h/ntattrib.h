@@ -2,7 +2,7 @@
 *
 *                            Open Watcom Project
 *
-*    Portions Copyright (c) 1983-2002 Sybase, Inc. All Rights Reserved.
+* Copyright (c) 2019-2019 The Open Watcom Contributors. All Rights Reserved.
 *
 *  ========================================================================
 *
@@ -24,30 +24,14 @@
 *
 *  ========================================================================
 *
-* Description:  WHEN YOU FIGURE OUT WHAT THIS FILE DOES, PLEASE
-*               DESCRIBE IT HERE!
+* Description:  DOS<->NT file attributes conversion macros
 *
 ****************************************************************************/
 
 
-#include "variety.h"
-#include <windows.h>
-#include <dos.h>
-#include "ntattrib.h"
-#include "seterrno.h"
-#include "libwin32.h"
+#define _NT_ATTRIBUTES_MASK  (FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_READONLY \
+                                | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_ARCHIVE)
+#define _DOS_ATTRIBUTES_MASK (_A_SYSTEM | _A_HIDDEN | _A_RDONLY | _A_SUBDIR | _A_ARCH)
 
-
-_WCRTLINK unsigned _dos_getfileattr( const char *path, unsigned *dos_attrib )
-{
-    HANDLE              h;
-    WIN32_FIND_DATA     ffb;
-
-    h = __fixed_FindFirstFile( path, &ffb );
-    if( h == INVALID_HANDLE_VALUE ) {
-        return( __set_errno_nt_reterr() );
-    }
-    *dos_attrib = NT2DOSATTR( ffb.dwFileAttributes );
-    FindClose( h );
-    return( 0 );
-}
+#define NT2DOSATTR(a)       ((a) & _NT_ATTRIBUTES_MASK)
+#define DOS2NTATTR(a)       (((a) & _DOS_ATTRIBUTES_MASK) ? ((a) & _DOS_ATTRIBUTES_MASK) : FILE_ATTRIBUTE_NORMAL)

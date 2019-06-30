@@ -53,6 +53,7 @@
     #include "libwin32.h"
     #include "ntext.h"
     #include "timetwnt.h"
+    #include "ntattrib.h"
 #elif defined( __OS2__ )
     #include "d2ttime.h"
 #elif defined( __RDOS__ )
@@ -94,7 +95,7 @@
     }
 
     /*** Look for the first file ***/
-    if( !__NTFindNextFileWithAttr( h, FIND_ATTR, &ffb ) ) {
+    if( !__NTFindNextFileWithAttr( h, NT_FIND_ATTR, &ffb ) ) {
         FindClose( h );
         return( __set_errno_dos( ERROR_FILE_NOT_FOUND ) );
     }
@@ -190,25 +191,7 @@
 /******************************************************************************/
 {
     /*** Convert attributes ***/
-    fileinfo->attrib = 0;
-    if( ffb->dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE ) {
-        fileinfo->attrib |= _A_ARCH;
-    }
-    if( ffb->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) {
-        fileinfo->attrib |= _A_SUBDIR;
-    }
-    if( ffb->dwFileAttributes & FILE_ATTRIBUTE_HIDDEN ) {
-        fileinfo->attrib |= _A_HIDDEN;
-    }
-    if( ffb->dwFileAttributes & FILE_ATTRIBUTE_NORMAL ) {
-        fileinfo->attrib |= _A_NORMAL;
-    }
-    if( ffb->dwFileAttributes & FILE_ATTRIBUTE_READONLY ) {
-        fileinfo->attrib |= _A_RDONLY;
-    }
-    if( ffb->dwFileAttributes & FILE_ATTRIBUTE_SYSTEM ) {
-        fileinfo->attrib |= _A_SYSTEM;
-    }
+    fileinfo->attrib = NT2DOSATTR( ffb->dwFileAttributes );
 
     /*** Handle the timestamps ***/
     fileinfo->time_create = __NT_filetime_to_timet( &ffb->ftCreationTime );

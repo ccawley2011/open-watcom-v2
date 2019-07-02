@@ -51,12 +51,16 @@
     #include <mbstring.h>
     #include "_dtaxxx.h"
     #include "ntattrib.h"
+    #include "dosftwnt.h"
   #endif
 #endif
 #include "wio.h"
 #include "wreslang.h"
 
 #include "clibext.h"
+#if defined(__NT__)
+#include "ntext.h"
+#endif
 
 
 #define __set_errno( err ) errno = (err)
@@ -2012,7 +2016,7 @@ static time_t __NT_filetime_to_timet( const FILETIME *ft )
     return( ulint.QuadPart / WINDOWS_TICK - SEC_TO_UNIX_EPOCH );
 }
 
-static void __GetNTCreateAttr( unsigned dos_attrib, LPDWORD desired_access, LPDWORD nt_attrib )
+void __GetNTCreateAttr( unsigned dos_attrib, LPDWORD desired_access, LPDWORD nt_attrib )
 {
     if( dos_attrib & _A_RDONLY ) {
         *desired_access = GENERIC_READ;
@@ -2043,10 +2047,10 @@ void __GetNTAccessAttr( unsigned rwmode, LPDWORD desired_access, LPDWORD nt_attr
     }
 }
 
-void __GetNTShareAttr( int mode, LPDWORD share_mode )
+void __GetNTShareAttr( unsigned mode, LPDWORD share_mode )
 {
-    int share;
-    int rwmode;
+    unsigned share;
+    unsigned rwmode;
 
     share  = mode & OPENMODE_SHARE_MASK;
     rwmode = mode & OPENMODE_ACCESS_MASK;
@@ -2079,8 +2083,8 @@ void __GetNTShareAttr( int mode, LPDWORD share_mode )
     }
 }
 
-static void __FromDOSDT( unsigned short d, unsigned short t, FILETIME *NT_stamp )
-/*******************************************************************************/
+void __FromDOSDT( unsigned short d, unsigned short t, FILETIME *NT_stamp )
+/************************************************************************/
 {
     FILETIME local_ft;
 
@@ -2088,8 +2092,8 @@ static void __FromDOSDT( unsigned short d, unsigned short t, FILETIME *NT_stamp 
     LocalFileTimeToFileTime( &local_ft, NT_stamp );
 }
 
-static void __MakeDOSDT( FILETIME *NT_stamp, unsigned short *d, unsigned short *t )
-/*********************************************************************************/
+void __MakeDOSDT( FILETIME *NT_stamp, unsigned short *d, unsigned short *t )
+/**************************************************************************/
 {
     FILETIME local_ft;
 
@@ -2130,8 +2134,8 @@ static int is_directory( const char *name )
     return( -1 );
 }
 
-static void __GetNTDirInfo( struct dirent *dirp, LPWIN32_FIND_DATA ffd )
-/**********************************************************************/
+void __GetNTDirInfo( struct dirent *dirp, LPWIN32_FIND_DATA ffd )
+/***************************************************************/
 {
     DTAXXX_TSTAMP_OF( dirp->d_dta ) = __NT_filetime_to_timet( &ffd->ftLastWriteTime );
     __MakeDOSDT( &ffd->ftLastWriteTime, &dirp->d_date, &dirp->d_time );
@@ -2243,8 +2247,10 @@ int closedir( DIR *dirp )
 unsigned _dos_open( const char *name, unsigned mode, HANDLE *h )
 {
     HANDLE      handle;
-    DWORD       rwmode, share_mode;
-    DWORD       desired_access, nt_attrib;
+    DWORD       rwmode;
+    DWORD       share_mode;
+    DWORD       desired_access;
+    DWORD       nt_attrib;
 
     rwmode = mode & OPENMODE_ACCESS_MASK;
 
@@ -2329,20 +2335,6 @@ unsigned _dos_write( HANDLE h, void const *buffer, unsigned count, unsigned *byt
         return( (unsigned)-1 );
     }
     return( 0 );
-}
-
-#define NT_FIND_ATTRIBUTES_MASK (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_DIRECTORY)
-
-static BOOL __NTFindNextFileWithAttr( HANDLE h, DWORD nt_attrib, LPWIN32_FIND_DATA ffd )
-{
-    for(;;) {
-        if( (nt_attrib | ~ffd->dwFileAttributes) & NT_FIND_ATTRIBUTES_MASK )  {
-            return ( TRUE );
-        }
-        if( !FindNextFileA( h, ffd ) ) {
-            return( FALSE );
-        }
-    }
 }
 
 char        *optarg;            // pointer to option argument

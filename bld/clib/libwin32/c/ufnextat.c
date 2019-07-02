@@ -31,40 +31,9 @@
 ****************************************************************************/
 
 
-#include "variety.h"
-#include "widechar.h"
-#include <stdio.h>
-#include <string.h>
-#include <direct.h>
-#include <windows.h>
-#include "libwin32.h"
-#include "ntext.h"
-#include "_dtaxxx.h"
-#include "timetwnt.h"
-#include "dosftwnt.h"
-#include "ntattrib.h"
-
-
-#define NT_FIND_ATTRIBUTES_MASK (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_DIRECTORY)
-
-void __GetNTDirInfo( DIR_TYPE *dirp, LPWIN32_FIND_DATA ffb )
-{
-    DTAXXX_TSTAMP_OF( dirp->d_dta ) = __NT_filetime_to_timet( &ffb->ftLastWriteTime );
-    __MakeDOSDT( &ffb->ftLastWriteTime, &dirp->d_date, &dirp->d_time );
-    dirp->d_attr = NT2DOSATTR( ffb->dwFileAttributes );
-    dirp->d_size = ffb->nFileSizeLow;
-    __F_NAME(strncpy,wcsncpy)( dirp->d_name, ffb->cFileName, NAME_MAX );
-    dirp->d_name[NAME_MAX] = 0;
-}
-
-BOOL __NTFindNextFileWithAttr( HANDLE h, unsigned nt_attrib, LPWIN32_FIND_DATA ffb )
-{
-    for(;;) {
-        if( (nt_attrib | ~ffb->dwFileAttributes) & NT_FIND_ATTRIBUTES_MASK ) {
-            return ( TRUE );
-        }
-        if( !__lib_FindNextFile( h, ffb ) ) {
-            return( FALSE );
-        }
-    }
-}
+// this file should remain an indirected file
+// it is done this way to support the reuse of the source file
+#define __WIDECHAR__
+#define UNICODE
+#undef __INLINE_FUNCTIONS__
+#include "fnextatt.c"

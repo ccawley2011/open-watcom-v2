@@ -2,6 +2,7 @@
 *
 *                            Open Watcom Project
 *
+* Copyright (c) 2002-2019 The Open Watcom Contributors. All Rights Reserved.
 *    Portions Copyright (c) 1983-2002 Sybase, Inc. All Rights Reserved.
 *
 *  ========================================================================
@@ -31,47 +32,23 @@
 
 
 #include "variety.h"
-#include <stddef.h>
-#include <stdio.h>
-#include <dos.h>
-#include <io.h>
-#include <fcntl.h>
+#include "widechar.h"
+#include <string.h>
+#include <direct.h>
 #include <windows.h>
-#include "iomode.h"
-#include "fileacc.h"
 #include "ntext.h"
-#include "openmode.h"
-#include "seterrno.h"
+#include "_dtaxxx.h"
+#include "timetwnt.h"
+#include "dosftwnt.h"
+#include "ntattrib.h"
 
-_WCRTLINK unsigned _dos_creat( const char *name, unsigned attr, int *posix_handle )
+
+void __GetNTDirInfo( DIR_TYPE *dirp, LPWIN32_FIND_DATA ffd )
 {
-    HANDLE      handle;
-    DWORD       desired_access;
-    DWORD       os_attr;
-    int         hid;
-    unsigned    iomode_flags;
-
-    // First try to get the required slot.
-    // No point in creating a file only to not use it.  JBS 99/11/01
-    hid = __allocPOSIXHandleDummy();
-    if( hid == -1 ) {
-        return( __set_errno_dos_reterr( ERROR_NOT_ENOUGH_MEMORY ) );
-    }
-
-    __GetNTCreateAttr( attr, &desired_access, &os_attr );
-    handle = CreateFile( (LPTSTR)name, desired_access, 0, 0, CREATE_ALWAYS, os_attr, NULL );
-    if( handle == INVALID_HANDLE_VALUE ) {
-        __freePOSIXHandle( hid );
-        return( __set_errno_nt_reterr() );
-    }
-    // Now use the slot we got.
-    __setOSHandle( hid, handle );   // JBS 99/11/01
-
-    *posix_handle = hid;
-
-    iomode_flags = _READ;
-    if( !(attr & _A_RDONLY) )
-        iomode_flags |= _WRITE;
-    __SetIOMode( hid, iomode_flags );
-    return( 0 );
+    DTAXXX_TSTAMP_OF( dirp->d_dta ) = __NT_filetime_to_timet( &ffd->ftLastWriteTime );
+    __MakeDOSDT( &ffd->ftLastWriteTime, &dirp->d_date, &dirp->d_time );
+    dirp->d_attr = NT2DOSATTR( ffd->dwFileAttributes );
+    dirp->d_size = ffd->nFileSizeLow;
+    __F_NAME(strncpy,wcsncpy)( dirp->d_name, ffd->cFileName, NAME_MAX );
+    dirp->d_name[NAME_MAX] = 0;
 }

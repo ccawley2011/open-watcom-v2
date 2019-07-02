@@ -25,15 +25,35 @@
 *
 *  ========================================================================
 *
-* Description:  WHEN YOU FIGURE OUT WHAT THIS FILE DOES, PLEASE
-*               DESCRIBE IT HERE!
+* Description:  CLIB internal NT extension function prototypes.
 *
 ****************************************************************************/
 
 
-// this file should remain an indirected file
-// it is done this way to support the reuse of the source file
-#define __WIDECHAR__
-#define UNICODE
-#undef __INLINE_FUNCTIONS__
-#include "ntdirinf.c"
+#ifndef __NTEXT_INCLUDED__
+#define __NTEXT_INCLUDED__
+
+extern void     __GetNTCreateAttr( unsigned dos_attrib, LPDWORD desired_access, LPDWORD nt_attrib );
+extern void     __GetNTAccessAttr( unsigned rwmode, LPDWORD desired_access, LPDWORD nt_attrib );
+extern void     __GetNTShareAttr( unsigned share, LPDWORD share_mode );
+
+extern void     __GetNTDirInfoA( struct dirent *dirp, LPWIN32_FIND_DATAA ffd );
+extern void     __GetNTFindInfoA( struct find_t *findt, LPWIN32_FIND_DATAA ffd );
+extern BOOL     __NTFindNextFileWithAttrA( HANDLE h, unsigned nt_attribs, LPWIN32_FIND_DATAA ffd );
+#ifdef __WATCOMC__
+extern void     __GetNTDirInfoW( struct _wdirent *dirp, LPWIN32_FIND_DATAW ffd );
+extern void     __GetNTFindInfoW( struct _wfind_t *findt, LPWIN32_FIND_DATAW ffd );
+extern BOOL     __NTFindNextFileWithAttrW( HANDLE h, unsigned nt_attribs, LPWIN32_FIND_DATAW ffd );
+#endif
+
+#ifdef __WIDECHAR__
+#define __GetNTDirInfo              __GetNTDirInfoW
+#define __GetNTFindInfo             __GetNTFindInfoW
+#define __NTFindNextFileWithAttr    __NTFindNextFileWithAttrW
+#else
+#define __GetNTDirInfo              __GetNTDirInfoA
+#define __GetNTFindInfo             __GetNTFindInfoA
+#define __NTFindNextFileWithAttr    __NTFindNextFileWithAttrA
+#endif
+
+#endif

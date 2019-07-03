@@ -50,8 +50,6 @@
     #include <windows.h>
     #include <mbstring.h>
     #include "_dtaxxx.h"
-    #include "ntattrib.h"
-    #include "dosftwnt.h"
   #endif
 #endif
 #include "wio.h"
@@ -59,7 +57,7 @@
 
 #include "clibext.h"
 #if defined(__NT__)
-#include "ntext.h"
+    #include "ntext.h"
 #endif
 
 
@@ -2003,11 +2001,7 @@ unsigned _dos_setfileattr( const char *path, unsigned dos_attrib )
 #define OPENMODE_DENY_READ      0x0030
 #define OPENMODE_DENY_NONE      0x0040
 
-#define WINDOWS_TICK            10000000LL
-#define SEC_TO_UNIX_EPOCH       11644473600LL
-
-
-static time_t __NT_filetime_to_timet( const FILETIME *ft )
+time_t __NT_filetime_to_timet( const FILETIME *ft )
 {
     ULARGE_INTEGER  ulint;
 
@@ -2099,6 +2093,21 @@ void __MakeDOSDT( FILETIME *NT_stamp, unsigned short *d, unsigned short *t )
 
     FileTimeToLocalFileTime( NT_stamp, &local_ft );
     FileTimeToDosDateTime( &local_ft, d, t );
+}
+
+#define NT_FIND_ATTRIBUTES_MASK (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_DIRECTORY)
+
+BOOL __NTFindNextFileWithAttr( HANDLE h, unsigned nt_attrib, LPWIN32_FIND_DATA ffd )
+/**********************************************************************************/
+{
+    for( ;; ) {
+        if( (nt_attrib | ~ffd->dwFileAttributes) & NT_FIND_ATTRIBUTES_MASK ) {
+            return( TRUE );
+        }
+        if( !FindNextFile( h, ffd ) ) {
+            return( FALSE );
+        }
+    }
 }
 
 static int is_directory( const char *name )

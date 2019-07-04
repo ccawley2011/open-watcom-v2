@@ -19,6 +19,7 @@ if "%OWTRAVIS_DEBUG%" == "1" (
     echo LIBPATH="%LIBPATH%"
 )
 REM ...
+xcopy /S /D /R buildx $OWSRCDIR\
 cd %OWSRCDIR%
 if "%OWTRAVISJOB%" == "BUILD" (
     if "%TRAVIS_EVENT_TYPE%" == "pull_request" (
@@ -53,4 +54,19 @@ if "%OWTRAVISJOB%" == "BUILD-2" (
         )
     )
 )
-echo ERRORLEVEL=%ERRORLEVEL%
+if "%OWTRAVISJOB%" == "BUILD-3" (
+    if "%TRAVIS_EVENT_TYPE%" == "pull_request" (
+        builder build3
+    ) else (
+        builder -q build3
+    	if not errorlevel == 1 (
+            set OWRELROOT=%OWROOT%\test
+            builder -q cprel3
+        )
+    )
+)
+set RC=%ERRORLEVEL%
+cd %OWROOT%
+if not errorlevel == 1 xcopy /S /D /R $OWSRCDIR buildx\
+echo ERRORLEVEL=%RC%
+Exit %RC%

@@ -117,21 +117,21 @@ static BOOL is_pt_in_rect(
 
 void rgn_off(
 /***********/
-
+    void
 ) {
     Curr_state = RGN_STATE_OFF;
 }
 
 void rgn_on(
 /**********/
-
+    void
 ) {
     Curr_state = RGN_STATE_ON;
 }
 
 int rgn_disable(
 /**************/
-
+    void
 ) {
     int         old_state;
 
@@ -245,6 +245,7 @@ static void add_rgn_def(
 
 void rgn_begin_group(
 /******************/
+    void
 ) {
     rgn_set_def far        *curr;
 
@@ -263,6 +264,7 @@ void rgn_begin_group(
 
 static void rgn_group_add(
 /************************/
+    void
 ) {
     rgn_set_list_def    curr;
 
@@ -272,6 +274,7 @@ static void rgn_group_add(
 
 void rgn_end_group(
 /*****************/
+    void
 ) {
     if ((Curr_state == RGN_STATE_ON) && (Set_state == RGN_GROUP)) {
         Set_state = RGN_REGULAR;
@@ -280,6 +283,7 @@ void rgn_end_group(
 
 void rgn_begin_set(
 /*****************/
+    void
 ) {
     rgn_set_def far        *curr;
 
@@ -311,13 +315,14 @@ void rgn_set_add(
 
 void rgn_end_set(
 /***************/
+    void
 ) {
     if ((Curr_state == RGN_STATE_ON) && (Set_state == RGN_SET)) {
         Set_state = RGN_REGULAR;
     }
 }
 
-extern int rgn_man_group_new(
+int rgn_man_group_new(
 /***************************/
     void
 ) {
@@ -335,7 +340,7 @@ extern int rgn_man_group_new(
     return( group_num );
 }
 
-extern void rgn_man_group_begin(
+void rgn_man_group_begin(
 /******************************/
     int     group_num
 ) {
@@ -347,7 +352,7 @@ extern void rgn_man_group_begin(
     }
 }
 
-extern void rgn_man_group_end(
+void rgn_man_group_end(
 /****************************/
     void
 ) {
@@ -356,7 +361,7 @@ extern void rgn_man_group_end(
     }
 }
 
-extern int rgn_man_set_new(
+int rgn_man_set_new(
 /*************************/
     void
 ) {
@@ -374,7 +379,7 @@ extern int rgn_man_set_new(
     return( group_num );
 }
 
-extern void rgn_man_set_begin(
+void rgn_man_set_begin(
 /****************************/
     int     set_num
 ) {
@@ -386,7 +391,7 @@ extern void rgn_man_set_begin(
     }
 }
 
-extern void rgn_man_set_end(
+void rgn_man_set_end(
 /**************************/
     void
 ) {
@@ -397,7 +402,7 @@ extern void rgn_man_set_end(
 
 void rgn_begin(
 /*************/
-
+    void
 ) {
     if( Curr_state != RGN_STATE_OFF ) {
         Region_size = 0;
@@ -562,7 +567,7 @@ static rgn_def far * get_rgn_list_ptr(
 
 BOOL rgn_is_on(
 /*************/
-
+    void
 ) {
     return( Curr_state == RGN_STATE_ON );
 }
@@ -1707,7 +1712,7 @@ static HANDLE do_group_set_markers(
     }
 }
 
-extern void get_rgn_rect(
+void get_rgn_rect(
 /***********************/
     void far            *rgn_ptr,
     WPI_RECT            *rect
@@ -1720,7 +1725,7 @@ extern void get_rgn_rect(
     }
 }
 
-extern int get_line_point(
+int get_line_point(
 /************************/
     void far            *rgn_ptr,
     int                 pos_x,
@@ -1748,7 +1753,7 @@ extern int get_line_point(
     return( 0 );
 }
 
-extern void get_rgn_line(
+void get_rgn_line(
 /***********************/
     void far            *rgn_ptr,
     WPI_POINT           *p1,

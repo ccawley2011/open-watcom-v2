@@ -22,8 +22,6 @@ gitupds_proc()
     if [ "$TRAVIS_BRANCH" = "$OWBRANCH" ] || [ "$TRAVIS_BRANCH" = "$OWBRANCH_DOCS" ]; then
         if [ "$TRAVIS_EVENT_TYPE" = "push" ] || [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then
             case "$OWTRAVISJOB" in
-                "BOOTSTRAP")
-                    ;;
                 "CPREL")
                     if [ "$TRAVIS_OS_NAME" = "linux" ] || [ "$TRAVIS_OS_NAME" = "windows" ]; then
                         #
@@ -33,29 +31,28 @@ gitupds_proc()
                         #
                         # copy OW build to git tree
                         #
-                        export OWRELROOT=$OWROOT/test
-                        cd $OWSRCDIR
-                        builder cprel
+                        pwd
                         if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-                            export OWRELROOT=$OWTRAVIS_BUILD_DIR
-                            builder cprel
+                            cp -Rf $OWRELROOT/. $OWTRAVIS_BUILD_DIR/
                         elif [ "$OWTRAVIS_DEBUG" = "1" ]; then
-                            cp -Rfv $OWRELROOT/binnt64 $OWTRAVIS_BUILD_DIR/binnt64
+                            cp -Rfv $OWRELROOT/binnt64/. $OWTRAVIS_BUILD_DIR/binnt64/
                         else
-                            cp -Rf $OWRELROOT/binnt64 $OWTRAVIS_BUILD_DIR/binnt64
+                            cp -Rf $OWRELROOT/binnt64/. $OWTRAVIS_BUILD_DIR/binnt64/
                         fi
                         #
                         # commit updated files to GitHub repository
                         #
                         cd $OWTRAVIS_BUILD_DIR
+                        pwd
                         git add $GITVERBOSE2 -f .
-#                        if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-#                            git commit $GITVERBOSE1 -m "Travis CI build $TRAVIS_JOB_NUMBER - OW distribution (linux)"
-#                        else
-#                            git commit $GITVERBOSE1 -m "Travis CI build $TRAVIS_JOB_NUMBER - OW distribution (windows)"
-#                        fi
+                        if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+                            git commit $GITVERBOSE1 -m "Travis CI build $TRAVIS_JOB_NUMBER - OW distribution"
+                        else
+                            git commit $GITVERBOSE1 -m "Travis CI build $TRAVIS_JOB_NUMBER - OW distribution (Windows 64-bit only)"
+                        fi
                         git push $GITVERBOSE1 -f origin
                         cd $TRAVIS_BUILD_DIR
+                        pwd
                         echo_msg="gitupds.sh - done"
                     fi
                     ;;
@@ -76,7 +73,7 @@ gitupds_proc()
                         #
                         cd $OWTRAVIS_BUILD_DIR
                         git add $GITVERBOSE2 -f .
-#                        git commit $GITVERBOSE1 -m "Travis CI build $TRAVIS_JOB_NUMBER - Documentation"
+                        git commit $GITVERBOSE1 -m "Travis CI build $TRAVIS_JOB_NUMBER - Documentation"
                         git push $GITVERBOSE1 -f origin
                         cd $TRAVIS_BUILD_DIR
                         echo_msg="gitupds.sh - done"

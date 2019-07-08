@@ -17,6 +17,7 @@ env:
     - OWBRANCH_SF=sourceforge
     - OWTRAVIS_REPO_SLUG=open-watcom/travis-ci-ow-builds
     - OWTRAVIS_BUILD_DIR=${HOME}/build/$OWTRAVIS_REPO_SLUG
+    - OWRELROOT=$TRAVIS_BUILD_DIR/test
 
 cache:
   directories:
@@ -31,7 +32,7 @@ before_script:
  - git config --global user.name "Travis CI"
  - git config --global push.default simple
  # setup cp options
- - if [ "$OWTRAVIS_CACHE_DEBUG" = "1" ]; then export CP_OPTS=-Rnv; else export CP_OPTS=-Rn; fi
+ - if [ "$OWTRAVIS_CACHE_DEBUG" = "1" ]; then export CP_OPTS=-Rnv; else export CP_OPTS=-Rnv; fi
  # get environment/cache info if debug is active
  - travis/envinfo.sh
  - travis/cacheinf.sh
@@ -44,7 +45,7 @@ after_failure:
 after_success:
  # after success transfer OW build to GitHub repository
  - travis/cacheinf.sh
-# - travis/gitupds.sh
+ - travis/gitupds.sh
 
 jobs:
   allow_failures:
@@ -143,11 +144,6 @@ jobs:
         - . ./cmnvars.sh
       script:
         - travis/build.sh
-      before_cache:
-        - pwd
-        - echo $OWSRCDIR
-        # save build to cache (buildx)
-        - cp $CP_OPTS $OWSRCDIR/. buildx
     - # ...
       name: "OW tools build-1 OSX"
       if: branch = env(OWBRANCH) AND (type = cron OR (type = push AND env(OWTRAVIS_ALL) = 1))
@@ -164,10 +160,8 @@ jobs:
       script:
         - travis/build.sh
       before_cache:
-        - pwd
-        - echo $OWSRCDIR
         # save build to cache (buildx)
-        - cp $CP_OPTS $OWSRCDIR/. buildx/
+        - travis/cache1.sh
     - # ...
       name: "OW tools build-1 Windows"
       if: branch = env(OWBRANCH) AND (type = cron OR (type = push AND env(OWTRAVIS_ALL) = 1))
@@ -180,15 +174,14 @@ jobs:
         - export OWTOOLS=VISUALC
         - export OWTRAVISJOB=BUILD-1
         - export OWSRCDIR=$OWROOT/bld
+        - export OWBINDIR=$OWROOT/build/$OWOBJDIR
       install:
 #        - install dosbox
       script:
         - cmd.exe /c "travis\winbuild.cmd"
       before_cache:
-        - pwd
-        - echo $OWSRCDIR
         # save build to cache (buildx)
-        - cp $CP_OPTS $OWSRCDIR/. buildx
+        - travis/cache1.sh
     #################################
     - stage: Build2
       name: "OW tools build-2 OSX"
@@ -208,14 +201,13 @@ jobs:
         - . ./cmnvars.sh
       script:
         # load build from cache (buildx)
-        - cp $CP_OPTS buildx/. $OWSRCDIR/; true
+        - echo "load cache1" >>$OWBINDIR/cache1.log
+        - cp $CP_OPTS $OWROOT/buildx/ $OWSRCDIR/ >>$OWBINDIR/cache1.log
         # run script
         - travis/build.sh
       before_cache:
-        - pwd
-        - echo $OWSRCDIR
         # save build to cache (buildx)
-        - cp $CP_OPTS $OWSRCDIR/. buildx/
+        - travis/cache2.sh
     - # ...
       name: "OW tools build-2 Windows"
       if: branch = env(OWBRANCH) AND (type = cron OR (type = push AND env(OWTRAVIS_ALL) = 1))
@@ -228,20 +220,18 @@ jobs:
         - export OWTOOLS=VISUALC
         - export OWTRAVISJOB=BUILD-2
         - export OWSRCDIR=$OWROOT/bld
+        - export OWBINDIR=$OWROOT/build/$OWOBJDIR
       install:
 #        - install dosbox
       script:
-        - pwd
-        - echo $OWSRCDIR
         # load build from cache (buildx)
-        - cp $CP_OPTS buildx/. $OWSRCDIR; true
+        - echo "load cache1" >>$OWBINDIR/cache1.log
+        - cp $CP_OPTS $OWROOT/buildx/ $OWSRCDIR/ >>$OWBINDIR/cache1.log
         # run script
         - cmd.exe /c "travis\winbuild.cmd"
       before_cache:
-        - pwd
-        - echo $OWSRCDIR
         # save build to cache (buildx)
-        - cp $CP_OPTS $OWSRCDIR/. buildx
+        - travis/cache2.sh
     #################################
     - stage: Build3
       name: "OW tools build-3 OSX"
@@ -261,14 +251,10 @@ jobs:
         - . ./cmnvars.sh
       script:
         # load build from cache (buildx)
-        - cp $CP_OPTS buildx/. $OWSRCDIR/; true
+        - echo "load cache2" >>$OWBINDIR/cache2.log
+        - cp $CP_OPTS $OWROOT/buildx/ $OWSRCDIR/ >>$OWBINDIR/cache2.log
         # run script
         - travis/build.sh
-      before_cache:
-        - pwd
-        - echo $OWSRCDIR
-        # save build to cache (buildx)
-        - cp $CP_OPTS $OWSRCDIR/. buildx/
     - # ...
       name: "OW tools build-3 Windows"
       if: branch = env(OWBRANCH) AND (type = cron OR (type = push AND env(OWTRAVIS_ALL) = 1))
@@ -284,17 +270,11 @@ jobs:
       install:
 #        - install dosbox
       script:
-        - pwd
-        - echo $OWSRCDIR
         # load build from cache (buildx)
-        - cp $CP_OPTS buildx/. $OWSRCDIR; true
+        - echo "load cache2" >>$OWBINDIR/cache2.log
+        - cp $CP_OPTS $OWROOT/buildx/ $OWSRCDIR/ >>$OWBINDIR/cache2.log
         # run script
         - cmd.exe /c "travis\winbuild.cmd"
-      before_cache:
-        - pwd
-        - echo $OWSRCDIR
-        # save build to cache (buildx)
-        - cp $CP_OPTS $OWSRCDIR/. buildx
     #################################
     - stage: UpdateBuild
       name: "Update Build Linux"
@@ -310,8 +290,8 @@ jobs:
 #        - export WATCOM=$TRAVIS_BUILD_DIR/test
         - . ./cmnvars.sh
       script:
-#        - cp $CP_OPTS buildx/. $WATCOM
-        - travis/gitupds.sh
+#        - cp $CP_OPTS $OWROOT/buildx/ $WATCOM/
+        - true
     - # ...
       name: "Update Build Windows"
       if: branch = env(OWBRANCH) AND (type = cron OR (type = push AND env(OWTRAVIS_ALL) = 1))
@@ -325,10 +305,9 @@ jobs:
         - export OWSRCDIR=buildx
       install:
         - export WATCOM=$TRAVIS_BUILD_DIR/test
-        - export PATH=$OWROOT/build/$OWOBJDIR;$OWROOT/build;$PATH
       script:
-#        - cp $CP_OPTS buildx/. $WATCOM
-        - travis/gitupds.sh
+#        - cp $CP_OPTS $OWROOT/buildx/ $WATCOM
+        - true
     #################################
 #    - stage: InitTests
 #      name: "Initialze Tests Environment"
@@ -339,7 +318,7 @@ jobs:
 #      install:
 #        - export WATCOM=$TRAVIS_BUILD_DIR/test
 #      script:
-#        - cp $CP_OPTS buildx/. $WATCOM
+#        - cp $CP_OPTS $OWROOT/buildx/ $WATCOM/
     #################################
     - stage: Tests
       name: "Test wasm assembler"

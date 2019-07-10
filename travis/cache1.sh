@@ -26,10 +26,17 @@ mkdir -p $OWROOT/buildx/w32api/nt386 >>$OWBINDIR/cache1.log
 cp $CP_OPTS $OWSRCDIR/w32api/nt386/. $OWROOT/buildx/w32api/nt386/ >>$OWBINDIR/cache1.log
 #mkdir -p $OWROOT/buildx/w32api/ntaxp >>$OWBINDIR/cache1.log
 #cp $CP_OPTS $OWSRCDIR/w32api/ntaxp/. $OWROOT/buildx/w32api/ntaxp/ >>$OWBINDIR/cache1.log
+
 mkdir -p $OWROOT/buildx/clib/library >>$OWBINDIR/cache1.log
 cp $CP_OPTS $OWSRCDIR/clib/library/. $OWROOT/buildx/clib/library/ >>$OWBINDIR/cache1.log
+mkdir -p $OWROOT/buildx/clib/startup/library >>$OWBINDIR/cache1.log
+cp $CP_OPTS $OWSRCDIR/clib/startup/library/. $OWROOT/buildx/clib/startup/library/ >>$OWBINDIR/cache1.log
 mkdir -p $OWROOT/buildx/cpplib/library >>$OWBINDIR/cache1.log
 cp $CP_OPTS $OWSRCDIR/cpplib/library/. $OWROOT/buildx/cpplib/library/ >>$OWBINDIR/cache1.log
+#mkdir -p $OWROOT/buildx/cpplib/runtime >>$OWBINDIR/cache1.log
+#cp $CP_OPTS $OWSRCDIR/cpplib/runtime/. $OWROOT/buildx/cpplib/runtime/ >>$OWBINDIR/cache1.log
+#mkdir -p $OWROOT/buildx/cpplib/iostream >>$OWBINDIR/cache1.log
+#cp $CP_OPTS $OWSRCDIR/cpplib/iostream/. $OWROOT/buildx/cpplib/iostream/ >>$OWBINDIR/cache1.log
 mkdir -p $OWROOT/buildx/mathlib/library >>$OWBINDIR/cache1.log
 cp $CP_OPTS $OWSRCDIR/mathlib/library/. $OWROOT/buildx/mathlib/library/ >>$OWBINDIR/cache1.log
 mkdir -p $OWROOT/buildx/clib/rtdll >>$OWBINDIR/cache1.log
@@ -38,5 +45,3 @@ mkdir -p $OWROOT/buildx/cpplib/rtdll >>$OWBINDIR/cache1.log
 cp $CP_OPTS $OWSRCDIR/cpplib/rtdll/. $OWROOT/buildx/cpplib/rtdll/ >>$OWBINDIR/cache1.log
 mkdir -p $OWROOT/buildx/mathlib/rtdll >>$OWBINDIR/cache1.log
 cp $CP_OPTS $OWSRCDIR/mathlib/rtdll/. $OWROOT/buildx/mathlib/rtdll/ >>$OWBINDIR/cache1.log
-mkdir -p $OWROOT/buildx/clib/startup/library >>$OWBINDIR/cache1.log
-cp $CP_OPTS $OWSRCDIR/clib/startup/library/. $OWROOT/buildx/clib/startup/library/ >>$OWBINDIR/cache1.log

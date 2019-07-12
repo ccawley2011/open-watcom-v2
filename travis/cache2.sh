@@ -2,47 +2,48 @@
 #
 # Script to fill Travis build cache2
 #
+set -x
+
+copy_tree2()
+{
+  for x in $1/*; do
+    if [ -f "$x" ]; then
+      if [ "$x" == "$3" ]; then
+        f = $2/$x
+        d = `dirname "$f"`
+        if [ ! -d "$d" ]; then
+          mkdir -p "$d" >>$OWBINDIR/cache2.log
+        fi
+        cp $CP_OPTS "$x" "$f" >>$OWBINDIR/cache2.log
+      fi
+    elif [ -d "$x" ]; then
+      copy_tree2 "$x" $2 $3
+    fi
+  done
+}
+
+copy_tree2_lib()
+{
+  cd $OWSRCDIR/$1
+  copy_tree2 . $OWROOT/buildx/$1 *.lib
+}
 
 echo "save cache2" >$OWBINDIR/cache2.log
 #
-cd $OWSRCDIR/fpuemu/i86
-mkdir -p $OWROOT/buildx/fpuemu/i86 >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/fpuemu/i86/ >>$OWBINDIR/cache2.log
+copy_tree2_lib fpuemu
 #
-cd $OWSRCDIR/fpuemu/386
-mkdir -p $OWROOT/buildx/fpuemu/386 >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/fpuemu/386/ >>$OWBINDIR/cache2.log
+copy_tree2_lib wres
 #
-cd $OWSRCDIR/wres
-mkdir -p $OWROOT/buildx/wres >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/wres/ >>$OWBINDIR/cache2.log
+copy_tree2_lib orl
 #
-cd $OWSRCDIR/orl
-mkdir -p $OWROOT/buildx/orl >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/orl/ >>$OWBINDIR/cache2.log
+copy_tree2_lib owl
 #
-cd $OWSRCDIR/owl
-mkdir -p $OWROOT/buildx/owl >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/owl/ >>$OWBINDIR/cache2.log
+copy_tree2_lib dwarf
 #
-cd $OWSRCDIR/dwarf/dw
-mkdir -p $OWROOT/buildx/dwarf/dw >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/dwarf/dw/ >>$OWBINDIR/cache2.log
+copy_tree2_lib cfloat
 #
-cd $OWSRCDIR/dwarf/dr
-mkdir -p $OWROOT/buildx/dwarf/dr >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/dwarf/dr/ >>$OWBINDIR/cache2.log
+copy_tree2_lib commonui
 #
-cd $OWSRCDIR/cfloat
-mkdir -p $OWROOT/buildx/cfloat >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/cfloat/ >>$OWBINDIR/cache2.log
-#
-cd $OWSRCDIR/commonui
-mkdir -p $OWROOT/buildx/commonui >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/commonui/ >>$OWBINDIR/cache2.log
-#
-cd $OWSRCDIR/wpi
-mkdir -p $OWROOT/buildx/wpi >>$OWBINDIR/cache2.log
-cp $CP_OPTS */*.lib $OWROOT/buildx/wpi/ >>$OWBINDIR/cache2.log
+copy_tree2_lib wpi
 #
 cd $TRAVIS_BUILD_DIR

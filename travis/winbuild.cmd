@@ -59,7 +59,6 @@ if "%OWTRAVISJOB%" == "BUILD-3" (
     )
 )
 set RC=%ERRORLEVEL%
-sleep 15
-%WINDIR%\system32\timeout 15 >NUL
-echo ERRORLEVEL=%RC%
+REM sleep 3
+ping -n 3 127.0.0.1 >NUL
 exit %RC%

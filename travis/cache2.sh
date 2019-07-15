@@ -31,5 +31,7 @@ copy_tree2  rcsdll      "*.lib"
 copy_tree2  ui          "*.lib"
 copy_tree2  ui          "*.gh"
 copy_tree2  wpi         "*.lib"
+copy_tree2  win386/conv "*.lib"
+copy_tree2  win386/ext  "*.ext"
 #
 cd $TRAVIS_BUILD_DIR
